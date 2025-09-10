@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:electron:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tailwindcss:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
