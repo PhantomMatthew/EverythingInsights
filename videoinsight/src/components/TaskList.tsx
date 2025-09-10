@@ -33,7 +33,23 @@ const TaskList: React.FC<TaskListProps> = ({ showRecent = false }) => {
       case 'completed': return 'success';
       case 'failed': return 'danger';
       case 'pending': return 'default';
+      case 'downloading': return 'primary';
+      case 'extracting': return 'secondary';
+      case 'transcribing': return 'warning';
+      case 'summarizing': return 'primary';
       default: return 'primary';
+    }
+  };
+
+  const getStatusIcon = (status: Task['status']) => {
+    switch (status) {
+      case 'downloading': return '⬇️';
+      case 'extracting': return '🎵';
+      case 'transcribing': return '📝';
+      case 'summarizing': return '🤖';
+      case 'completed': return '✅';
+      case 'failed': return '❌';
+      default: return '⏳';
     }
   };
 
@@ -98,14 +114,19 @@ ${task.transcript || 'No transcript available'}
 
   if (displayTasks.length === 0) {
     return (
-      <Card>
-        <CardBody className="text-center py-8">
-          <p className="text-default-500">
-            {showRecent ? 'No recent tasks' : 'No tasks yet'}
-          </p>
-          <p className="text-sm text-default-400 mt-2">
-            Add a video URL above to get started
-          </p>
+      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+        <CardBody className="text-center py-16">
+          <div className="space-y-4">
+            <div className="text-6xl">📺</div>
+            <div>
+              <p className="text-xl font-medium text-default-600 mb-2">
+                {showRecent ? 'No recent tasks' : 'No tasks yet'}
+              </p>
+              <p className="text-default-400">
+                Add a video URL above to get started with AI-powered analysis
+              </p>
+            </div>
+          </div>
         </CardBody>
       </Card>
     );
@@ -113,60 +134,106 @@ ${task.transcript || 'No transcript available'}
 
   return (
     <>
-      <Card>
-        <CardHeader className="flex justify-between">
-          <h3 className="text-lg font-semibold">
-            {showRecent ? 'Recent Tasks' : 'All Tasks'}
-          </h3>
-          <Chip size="sm" variant="flat">
+      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+        <CardHeader className="flex justify-between items-center p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-lg">
+              <span className="text-white text-xl">📋</span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-default-800">
+                {showRecent ? 'Recent Tasks' : 'All Tasks'}
+              </h3>
+              <p className="text-sm text-default-500">
+                {showRecent ? 'Your latest video processing tasks' : 'Complete task history'}
+              </p>
+            </div>
+          </div>
+          <Chip size="lg" color="primary" variant="flat" className="font-semibold">
             {displayTasks.length} {displayTasks.length === 1 ? 'task' : 'tasks'}
           </Chip>
         </CardHeader>
         <Divider />
-        <CardBody className="space-y-4">
+        <CardBody className="space-y-4 p-6">
           {displayTasks.map((task) => (
-            <Card key={task.id} shadow="sm" className="border-1">
-              <CardBody className="space-y-3">
+            <Card 
+              key={task.id} 
+              shadow="sm" 
+              className="border-1 hover:shadow-md transition-all duration-200 bg-gradient-to-r from-white to-default-50"
+            >
+              <CardBody className="space-y-4 p-6">
                 <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {task.title || task.url}
-                    </p>
-                    <p className="text-xs text-default-500 mt-1">
-                      {task.createdAt.toLocaleString()}
-                    </p>
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
+                    <div className="p-2 bg-default-100 rounded-lg flex-shrink-0">
+                      <span className="text-lg">
+                        {task.url.includes('youtube') || task.url.includes('youtu.be') ? '📺' : '🎥'}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-semibold truncate text-default-800 mb-1">
+                        {task.title || 'Video Processing Task'}
+                      </p>
+                      <p className="text-sm text-default-500 truncate mb-2">
+                        {task.url}
+                      </p>
+                      <p className="text-xs text-default-400">
+                        Started: {task.createdAt.toLocaleString()}
+                        {task.completedAt && (
+                          <span className="ml-3">
+                            Completed: {task.completedAt.toLocaleString()}
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
                   <Chip 
                     color={getStatusColor(task.status)}
-                    size="sm"
+                    size="md"
                     variant="flat"
+                    startContent={<span>{getStatusIcon(task.status)}</span>}
+                    className="font-medium"
                   >
                     {getStatusText(task.status)}
                   </Chip>
                 </div>
 
                 {task.status !== 'pending' && task.status !== 'completed' && task.status !== 'failed' && (
-                  <Progress 
-                    value={task.progress}
-                    size="sm"
-                    color="primary"
-                    showValueLabel
-                  />
-                )}
-
-                {task.error && (
-                  <div className="p-2 bg-danger-50 border border-danger-200 rounded-md">
-                    <p className="text-xs text-danger-700">{task.error}</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-default-600 font-medium">Progress</span>
+                      <span className="text-default-500 font-semibold">{Math.round(task.progress)}%</span>
+                    </div>
+                    <Progress 
+                      value={task.progress}
+                      size="md"
+                      color={getStatusColor(task.status)}
+                      showValueLabel={false}
+                      className="w-full"
+                    />
                   </div>
                 )}
 
-                <div className="flex gap-2 justify-end">
+                {task.error && (
+                  <div className="p-4 bg-danger-50 border-l-4 border-danger-300 rounded-r-lg">
+                    <div className="flex items-start gap-2">
+                      <span className="text-danger-600 text-lg flex-shrink-0">⚠️</span>
+                      <div>
+                        <p className="text-sm font-medium text-danger-800 mb-1">Error occurred</p>
+                        <p className="text-xs text-danger-700">{task.error}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 justify-end pt-2">
                   {task.status === 'completed' && task.summary && (
                     <>
                       <Button
                         size="sm"
                         variant="flat"
+                        color="primary"
                         onClick={() => handleViewResult(task)}
+                        startContent={<span>👁️</span>}
                       >
                         View Result
                       </Button>
@@ -175,6 +242,7 @@ ${task.transcript || 'No transcript available'}
                         variant="flat"
                         color="secondary"
                         onClick={() => handleExport(task)}
+                        startContent={<span>📤</span>}
                       >
                         Export
                       </Button>
@@ -185,6 +253,7 @@ ${task.transcript || 'No transcript available'}
                     variant="flat"
                     color="danger"
                     onClick={() => handleDelete(task.id)}
+                    startContent={<span>🗑️</span>}
                   >
                     Delete
                   </Button>
@@ -199,52 +268,108 @@ ${task.transcript || 'No transcript available'}
       <Modal 
         isOpen={isOpen} 
         onClose={onClose}
-        size="3xl"
+        size="5xl"
         scrollBehavior="inside"
+        backdrop="blur"
+        classNames={{
+          base: "bg-gradient-to-br from-white to-default-50",
+          header: "border-b border-default-200",
+          body: "py-6",
+          footer: "border-t border-default-200"
+        }}
       >
         <ModalContent>
-          <ModalHeader>
-            <div className="flex flex-col">
-              <h3>Task Result</h3>
-              <p className="text-sm text-default-500 font-normal">
-                {selectedTask?.title || selectedTask?.url}
-              </p>
+          <ModalHeader className="flex flex-col">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-success to-primary rounded-xl">
+                <span className="text-white text-2xl">🎬</span>
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-default-800">Task Results</h3>
+                <p className="text-sm text-default-600 font-normal">
+                  {selectedTask?.title || selectedTask?.url}
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Chip color="success" variant="flat" size="sm">
+                    Completed
+                  </Chip>
+                  {selectedTask?.completedAt && (
+                    <span className="text-xs text-default-400">
+                      {selectedTask.completedAt.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </ModalHeader>
-          <ModalBody className="space-y-4">
+          <ModalBody className="space-y-6">
             {selectedTask?.summary && (
-              <div>
-                <h4 className="font-semibold mb-2">Summary</h4>
-                <Textarea
-                  value={selectedTask.summary}
-                  readOnly
-                  variant="bordered"
-                  minRows={4}
-                />
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary-100 rounded-lg">
+                    <span className="text-primary-600 text-lg">🤖</span>
+                  </div>
+                  <h4 className="text-lg font-bold text-default-800">AI Summary</h4>
+                </div>
+                <Card className="bg-gradient-to-br from-primary-50 to-secondary-50 border-primary-200">
+                  <CardBody>
+                    <Textarea
+                      value={selectedTask.summary}
+                      readOnly
+                      variant="flat"
+                      minRows={6}
+                      maxRows={12}
+                      className="w-full"
+                      classNames={{
+                        input: "text-sm leading-relaxed"
+                      }}
+                    />
+                  </CardBody>
+                </Card>
               </div>
             )}
             
             {selectedTask?.transcript && (
-              <div>
-                <h4 className="font-semibold mb-2">Transcript</h4>
-                <Textarea
-                  value={selectedTask.transcript}
-                  readOnly
-                  variant="bordered"
-                  minRows={8}
-                />
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-warning-100 rounded-lg">
+                    <span className="text-warning-600 text-lg">📝</span>
+                  </div>
+                  <h4 className="text-lg font-bold text-default-800">Full Transcript</h4>
+                </div>
+                <Card className="bg-gradient-to-br from-warning-50 to-default-50 border-warning-200">
+                  <CardBody>
+                    <Textarea
+                      value={selectedTask.transcript}
+                      readOnly
+                      variant="flat"
+                      minRows={10}
+                      maxRows={20}
+                      className="w-full"
+                      classNames={{
+                        input: "text-sm leading-relaxed font-mono"
+                      }}
+                    />
+                  </CardBody>
+                </Card>
               </div>
             )}
           </ModalBody>
-          <ModalFooter>
+          <ModalFooter className="gap-3">
             <Button 
-              color="primary" 
+              color="secondary" 
               variant="flat"
+              size="lg"
               onClick={() => selectedTask && handleExport(selectedTask)}
+              startContent={<span>📤</span>}
             >
-              Export
+              Export Results
             </Button>
-            <Button onClick={onClose}>
+            <Button 
+              color="primary"
+              size="lg" 
+              onClick={onClose}
+            >
               Close
             </Button>
           </ModalFooter>

@@ -88,6 +88,24 @@ class MainProcess {
         this.mainWindow.on('closed', () => {
             this.mainWindow = null;
         });
+        // Register keyboard shortcuts for fullscreen toggle
+        this.setupKeyboardShortcuts();
+    }
+    setupKeyboardShortcuts() {
+        // Register F11 for fullscreen toggle (Windows/Linux style)
+        electron_1.globalShortcut.register('F11', () => {
+            if (this.mainWindow) {
+                const isFullScreen = this.mainWindow.isFullScreen();
+                this.mainWindow.setFullScreen(!isFullScreen);
+            }
+        });
+        // Register Cmd/Ctrl+Shift+F for fullscreen toggle
+        electron_1.globalShortcut.register('CommandOrControl+Shift+F', () => {
+            if (this.mainWindow) {
+                const isFullScreen = this.mainWindow.isFullScreen();
+                this.mainWindow.setFullScreen(!isFullScreen);
+            }
+        });
     }
     setupIPC() {
         // Download video and extract audio

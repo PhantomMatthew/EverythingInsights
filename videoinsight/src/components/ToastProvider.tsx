@@ -71,26 +71,58 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     }
   };
 
+  const getToastIcon = (type: Toast['type']) => {
+    switch (type) {
+      case 'success': return '✅';
+      case 'error': return '❌';
+      case 'warning': return '⚠️';
+      case 'info': return 'ℹ️';
+      default: return '📝';
+    }
+  };
+
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast, clearToasts }}>
       {children}
       
       {/* Toast Container */}
-      <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+      <div className="fixed top-6 right-6 z-50 space-y-3 max-w-md">
         {toasts.map((toast) => (
           <Card
             key={toast.id}
-            className={`shadow-lg border-l-4 animate-in slide-in-from-right duration-300`}
+            className={`shadow-2xl border-l-4 animate-in slide-in-from-right-full duration-300 backdrop-blur-sm bg-gradient-to-r from-white/95 to-default-50/95`}
             style={{
               borderLeftColor: `hsl(var(--heroui-${getToastColor(toast.type)}))`
             }}
           >
             <CardBody className="p-4">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-sm mb-1">{toast.title}</h4>
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg bg-${getToastColor(toast.type)}-100 flex-shrink-0`}>
+                  <span className={`text-${getToastColor(toast.type)}-600 text-lg`}>
+                    {getToastIcon(toast.type)}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-sm mb-1 text-default-800">{toast.title}</h4>
                   {toast.message && (
-                    <p className="text-xs text-default-600">{toast.message}</p>
+                    <p className="text-xs text-default-600 leading-relaxed">{toast.message}</p>
+                  )}
+                  
+                  {toast.action && (
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        color={getToastColor(toast.type)}
+                        variant="flat"
+                        onClick={() => {
+                          toast.action!.onClick();
+                          removeToast(toast.id);
+                        }}
+                        className="font-semibold"
+                      >
+                        {toast.action.label}
+                      </Button>
+                    </div>
                   )}
                 </div>
                 <Button
@@ -98,27 +130,11 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
                   size="sm"
                   variant="light"
                   onClick={() => removeToast(toast.id)}
-                  className="ml-2"
+                  className="text-default-400 hover:text-default-600"
                 >
-                  ×
+                  <span className="text-lg">×</span>
                 </Button>
               </div>
-              
-              {toast.action && (
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    size="sm"
-                    color={getToastColor(toast.type)}
-                    variant="flat"
-                    onClick={() => {
-                      toast.action!.onClick();
-                      removeToast(toast.id);
-                    }}
-                  >
-                    {toast.action.label}
-                  </Button>
-                </div>
-              )}
             </CardBody>
           </Card>
         ))}

@@ -308,72 +308,115 @@ const URLInput: React.FC<URLInputProps> = () => {
   const validation = detectPlatform(url);
 
   return (
-    <Card>
-      <CardHeader>
-        <h3 className="text-lg font-semibold">Add Video</h3>
+    <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-lg">
+            <span className="text-white text-xl">🎬</span>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-default-800">Add Video</h3>
+            <p className="text-sm text-default-500">Paste YouTube or Bilibili URL to get started</p>
+          </div>
+        </div>
       </CardHeader>
       <Divider />
-      <CardBody className="space-y-4">
+      <CardBody className="space-y-6 pt-6">
         <div 
-          className="drag-area"
+          className="relative p-8 border-2 border-dashed border-default-300 rounded-xl bg-gradient-to-br from-default-50 to-default-100 hover:border-primary-300 transition-colors duration-200"
           onDrop={handleDrop}
           onDragOver={handleDragOver}
         >
-          <p className="text-default-500">
-            Drop a video URL here or paste below
-          </p>
+          <div className="text-center">
+            <div className="mb-4">
+              <span className="text-4xl">📎</span>
+            </div>
+            <p className="text-default-600 font-medium">
+              Drop a video URL here
+            </p>
+            <p className="text-sm text-default-400 mt-1">
+              or paste in the field below
+            </p>
+          </div>
         </div>
         
         <Input
           label="Video URL"
-          placeholder="https://www.youtube.com/watch?v=..."
+          placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           variant="bordered"
+          size="lg"
           errorMessage={url && !validation.isValid ? validation.error : ''}
           isInvalid={url ? !validation.isValid : false}
           isDisabled={isProcessing}
+          startContent={
+            <div className="text-default-400">
+              🔗
+            </div>
+          }
+          className="text-base"
         />
         
         {url && validation.isValid && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-default-500">Platform:</span>
-            <Chip color="success" variant="flat" size="sm">
-              {validation.platform}
-            </Chip>
+          <div className="flex items-center gap-3 p-4 bg-success-50 rounded-xl border border-success-200">
+            <div className="p-2 bg-success-100 rounded-lg">
+              <span className="text-success-600 text-lg">
+                {validation.platform === 'YouTube' ? '📺' : '🎥'}
+              </span>
+            </div>
+            <div>
+              <p className="font-medium text-success-800">Platform Detected</p>
+              <Chip color="success" variant="solid" size="sm" className="mt-1">
+                {validation.platform}
+              </Chip>
+            </div>
           </div>
         )}
 
         {isProcessing && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-default-600">{progress.message}</span>
-              <span className="text-default-500">{Math.round(progress.progress)}%</span>
+          <div className="space-y-4 p-4 bg-primary-50 rounded-xl border border-primary-200">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin p-2 bg-primary-100 rounded-lg">
+                <span className="text-primary-600 text-lg">⚡</span>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-primary-800">{progress.message}</p>
+                <p className="text-sm text-primary-600">Processing your video...</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-primary-700">{Math.round(progress.progress)}%</p>
+              </div>
             </div>
             <Progress 
               value={progress.progress}
-              size="sm"
+              size="md"
               color="primary"
               className="w-full"
+              showValueLabel={false}
             />
           </div>
         )}
         
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <Button
             color="primary"
             onClick={handleSubmit}
             isDisabled={!url || !validation.isValid || isProcessing}
             isLoading={isProcessing}
-            className="flex-1"
+            size="lg"
+            className="flex-1 font-semibold"
+            startContent={isProcessing ? null : <span>🚀</span>}
           >
-            {isProcessing ? 'Processing...' : 'Process Video'}
+            {isProcessing ? 'Processing Video...' : 'Process Video'}
           </Button>
           
           <Button
             variant="bordered"
             onClick={() => setUrl('')}
             isDisabled={isProcessing}
+            size="lg"
+            className="px-6"
           >
             Clear
           </Button>

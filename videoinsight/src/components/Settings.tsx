@@ -54,14 +54,22 @@ const Settings: React.FC<SettingsProps> = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* LLM Settings */}
-      <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold">AI Model Settings</h3>
+      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+        <CardHeader className="p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-primary to-secondary rounded-xl">
+              <span className="text-white text-xl">🤖</span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-default-800">AI Model Settings</h3>
+              <p className="text-sm text-default-500">Configure language and speech recognition models</p>
+            </div>
+          </div>
         </CardHeader>
         <Divider />
-        <CardBody className="space-y-4">
+        <CardBody className="space-y-6 p-6">
           <Select
             label="LLM Model"
             description="Choose the language model for summarization"
@@ -73,9 +81,20 @@ const Settings: React.FC<SettingsProps> = () => {
                 llmModel: selected,
               });
             }}
+            variant="bordered"
+            size="lg"
+            startContent={<span className="text-primary">🧠</span>}
           >
             {llmModels.map((model) => (
-              <SelectItem key={model.key}>
+              <SelectItem 
+                key={model.key}
+                startContent={
+                  <span className="text-lg">
+                    {model.key.startsWith('ollama:') ? '🏠' : 
+                     model.key.startsWith('openai:') ? '🔥' : '⚡'}
+                  </span>
+                }
+              >
                 {model.label}
               </SelectItem>
             ))}
@@ -92,9 +111,15 @@ const Settings: React.FC<SettingsProps> = () => {
                 whisperModel: selected,
               });
             }}
+            variant="bordered"
+            size="lg"
+            startContent={<span className="text-warning">🎤</span>}
           >
             {whisperModels.map((model) => (
-              <SelectItem key={model.key}>
+              <SelectItem 
+                key={model.key}
+                startContent={<span>🎵</span>}
+              >
                 {model.label}
               </SelectItem>
             ))}
@@ -103,12 +128,20 @@ const Settings: React.FC<SettingsProps> = () => {
       </Card>
 
       {/* API Keys */}
-      <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold">API Keys</h3>
+      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+        <CardHeader className="p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-warning to-danger rounded-xl">
+              <span className="text-white text-xl">🔑</span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-default-800">API Keys</h3>
+              <p className="text-sm text-default-500">Configure API credentials for cloud services</p>
+            </div>
+          </div>
         </CardHeader>
         <Divider />
-        <CardBody className="space-y-4">
+        <CardBody className="space-y-6 p-6">
           <Input
             label="OpenAI API Key"
             placeholder="sk-..."
@@ -122,6 +155,9 @@ const Settings: React.FC<SettingsProps> = () => {
               },
             })}
             description="Required for OpenAI models (GPT-4, GPT-3.5)"
+            variant="bordered"
+            size="lg"
+            startContent={<span className="text-success">🔥</span>}
           />
 
           <Input
@@ -137,17 +173,28 @@ const Settings: React.FC<SettingsProps> = () => {
               },
             })}
             description="Required for Claude models"
+            variant="bordered"
+            size="lg"
+            startContent={<span className="text-secondary">⚡</span>}
           />
         </CardBody>
       </Card>
 
       {/* General Settings */}
-      <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold">General Settings</h3>
+      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+        <CardHeader className="p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-success to-primary rounded-xl">
+              <span className="text-white text-xl">⚙️</span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-default-800">General Settings</h3>
+              <p className="text-sm text-default-500">Customize your application experience</p>
+            </div>
+          </div>
         </CardHeader>
         <Divider />
-        <CardBody className="space-y-4">
+        <CardBody className="space-y-6 p-6">
           <Select
             label="Theme"
             description="Choose the app theme"
@@ -159,9 +206,20 @@ const Settings: React.FC<SettingsProps> = () => {
                 theme: selected,
               });
             }}
+            variant="bordered"
+            size="lg"
+            startContent={<span className="text-warning">🎨</span>}
           >
             {themes.map((theme) => (
-              <SelectItem key={theme.key}>
+              <SelectItem 
+                key={theme.key}
+                startContent={
+                  <span>
+                    {theme.key === 'light' ? '☀️' : 
+                     theme.key === 'dark' ? '🌙' : '💻'}
+                  </span>
+                }
+              >
                 {theme.label}
               </SelectItem>
             ))}
@@ -178,9 +236,15 @@ const Settings: React.FC<SettingsProps> = () => {
                 outputFormat: selected,
               });
             }}
+            variant="bordered"
+            size="lg"
+            startContent={<span className="text-secondary">📄</span>}
           >
             {outputFormats.map((format) => (
-              <SelectItem key={format.key}>
+              <SelectItem 
+                key={format.key}
+                startContent={<span>{format.key === 'md' ? '📝' : '📄'}</span>}
+              >
                 {format.label}
               </SelectItem>
             ))}
@@ -195,41 +259,103 @@ const Settings: React.FC<SettingsProps> = () => {
               tempDirectory: e.target.value,
             })}
             description="Directory for temporary files (videos, audio, etc.)"
+            variant="bordered"
+            size="lg"
+            startContent={<span className="text-primary">📁</span>}
           />
         </CardBody>
       </Card>
 
       {/* System Information */}
-      <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold">System Information</h3>
-        </CardHeader>
-        <Divider />
-        <CardBody className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="font-medium">Dependencies:</p>
-              <ul className="text-default-500 mt-1 space-y-1">
-                <li>• yt-dlp (required)</li>
-                <li>• ffmpeg (required)</li>
-                <li>• whisper (required)</li>
-                <li>• ollama (optional, for local models)</li>
-              </ul>
+      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+        <CardHeader className="p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-secondary to-warning rounded-xl">
+              <span className="text-white text-xl">💻</span>
             </div>
             <div>
-              <p className="font-medium">Version:</p>
-              <p className="text-default-500 mt-1">VideoInsight v0.1.0</p>
+              <h3 className="text-xl font-bold text-default-800">System Information</h3>
+              <p className="text-sm text-default-500">Dependencies and application details</p>
             </div>
           </div>
+        </CardHeader>
+        <Divider />
+        <CardBody className="space-y-6 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="bg-gradient-to-br from-primary-50 to-secondary-50 border-primary-200">
+              <CardBody className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">🔧</span>
+                  <h4 className="font-bold text-primary-800">Dependencies</h4>
+                </div>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center gap-2">
+                    <span className="text-success">✅</span>
+                    <span>yt-dlp (required)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-success">✅</span>
+                    <span>ffmpeg (required)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-success">✅</span>
+                    <span>whisper (required)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-warning">⚠️</span>
+                    <span>ollama (optional, for local models)</span>
+                  </li>
+                </ul>
+              </CardBody>
+            </Card>
+            
+            <Card className="bg-gradient-to-br from-success-50 to-primary-50 border-success-200">
+              <CardBody className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">📦</span>
+                  <h4 className="font-bold text-success-800">Application</h4>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <p className="flex justify-between">
+                    <span className="text-success-700">Version:</span>
+                    <span className="font-semibold">v0.1.0</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <span className="text-success-700">Platform:</span>
+                    <span className="font-semibold">Electron</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <span className="text-success-700">UI:</span>
+                    <span className="font-semibold">HeroUI + React</span>
+                  </p>
+                </div>
+              </CardBody>
+            </Card>
+          </div>
 
-          <div className="flex gap-2">
-            <Button size="sm" variant="flat">
+          <div className="flex flex-wrap gap-3">
+            <Button 
+              size="md" 
+              variant="flat" 
+              color="primary"
+              startContent={<span>🔍</span>}
+            >
               Check Dependencies
             </Button>
-            <Button size="sm" variant="flat">
+            <Button 
+              size="md" 
+              variant="flat" 
+              color="secondary"
+              startContent={<span>📋</span>}
+            >
               View Logs
             </Button>
-            <Button size="sm" variant="flat" color="warning">
+            <Button 
+              size="md" 
+              variant="flat" 
+              color="warning"
+              startContent={<span>🧹</span>}
+            >
               Clear Cache
             </Button>
           </div>
@@ -237,11 +363,22 @@ const Settings: React.FC<SettingsProps> = () => {
       </Card>
 
       {/* Action Buttons */}
-      <div className="flex gap-3 justify-end">
-        <Button variant="flat" onClick={handleReset}>
-          Reset
+      <div className="flex gap-4 justify-end">
+        <Button 
+          variant="bordered" 
+          onClick={handleReset}
+          size="lg"
+          className="px-8"
+        >
+          Reset Changes
         </Button>
-        <Button color="primary" onClick={handleSave}>
+        <Button 
+          color="primary" 
+          onClick={handleSave}
+          size="lg"
+          className="px-8 font-semibold"
+          startContent={<span>💾</span>}
+        >
           Save Settings
         </Button>
       </div>
