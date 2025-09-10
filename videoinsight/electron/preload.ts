@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 const electronAPI = {
   // Video processing
-  downloadVideo: (url: string) => ipcRenderer.invoke('download-video', url),
+  downloadVideo: (url: string, cookiesFile?: string) => ipcRenderer.invoke('download-video', url, cookiesFile),
   extractAudio: (videoPath: string) => ipcRenderer.invoke('extract-audio', videoPath),
   speechToText: (audioPath: string, model?: string) => ipcRenderer.invoke('speech-to-text', audioPath, model),
   llmSummarize: (text: string, model: string, apiKeys?: any) => ipcRenderer.invoke('llm-summarize', text, model, apiKeys),
@@ -10,6 +10,7 @@ const electronAPI = {
   // System operations
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
   showSaveDialog: (options: any) => ipcRenderer.invoke('show-save-dialog', options),
+  showOpenDialog: (options: any) => ipcRenderer.invoke('show-open-dialog', options),
 
   // Database operations
   dbSaveTask: (task: any) => ipcRenderer.invoke('db-save-task', task),

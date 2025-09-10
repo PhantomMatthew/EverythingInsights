@@ -27,11 +27,15 @@ const Settings: React.FC<SettingsProps> = () => {
   };
 
   const llmModels = [
-    { key: 'ollama:llama3', label: 'Llama 3 (Local)' },
+    { key: 'ollama:qwen3:30b', label: 'Qwen 3 30B (Local)' },
+    { key: 'ollama:qwen3:235b', label: 'Qwen 3 235B (Local)' },
     { key: 'ollama:qwen', label: 'Qwen (Local)' },
+    { key: 'ollama:llama3', label: 'Llama 3 (Local)' },
     { key: 'ollama:mistral', label: 'Mistral (Local)' },
     { key: 'openai:gpt-4', label: 'GPT-4' },
     { key: 'openai:gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+    { key: 'claude:claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
+    { key: 'claude:claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
   ];
 
   const whisperModels = [
@@ -263,6 +267,62 @@ const Settings: React.FC<SettingsProps> = () => {
             size="lg"
             startContent={<span className="text-primary">📁</span>}
           />
+
+          <div className="space-y-2">
+            <Input
+              label="Cookies File Path"
+              placeholder="/path/to/cookies.txt"
+              value={localSettings.cookiesFile}
+              onChange={(e) => setLocalSettings({
+                ...localSettings,
+                cookiesFile: e.target.value,
+              })}
+              description="Path to cookies.txt file for yt-dlp authentication (optional)"
+              variant="bordered"
+              size="lg"
+              startContent={<span className="text-warning">🍪</span>}
+              endContent={
+                <Button
+                  size="sm"
+                  variant="flat"
+                  color="secondary"
+                  onClick={async () => {
+                    if (window.electronAPI?.showOpenDialog) {
+                      const result = await window.electronAPI.showOpenDialog({
+                        title: 'Select Cookies File',
+                        filters: [
+                          { name: 'Text Files', extensions: ['txt'] },
+                          { name: 'All Files', extensions: ['*'] }
+                        ],
+                        properties: ['openFile']
+                      });
+                      
+                      if (!result.canceled && result.filePaths.length > 0) {
+                        setLocalSettings({
+                          ...localSettings,
+                          cookiesFile: result.filePaths[0],
+                        });
+                      }
+                    }
+                  }}
+                  startContent={<span>📂</span>}
+                >
+                  Browse
+                </Button>
+              }
+            />
+            {localSettings.cookiesFile && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-success">✅</span>
+                <span className="text-default-600">
+                  Cookies file: {localSettings.cookiesFile.split('/').pop()}
+                </span>
+                <span className="text-xs text-default-400">
+                  ({localSettings.cookiesFile})
+                </span>
+              </div>
+            )}
+          </div>
         </CardBody>
       </Card>
 

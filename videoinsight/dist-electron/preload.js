@@ -3,13 +3,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const electronAPI = {
     // Video processing
-    downloadVideo: (url) => electron_1.ipcRenderer.invoke('download-video', url),
+    downloadVideo: (url, cookiesFile) => electron_1.ipcRenderer.invoke('download-video', url, cookiesFile),
     extractAudio: (videoPath) => electron_1.ipcRenderer.invoke('extract-audio', videoPath),
     speechToText: (audioPath, model) => electron_1.ipcRenderer.invoke('speech-to-text', audioPath, model),
     llmSummarize: (text, model, apiKeys) => electron_1.ipcRenderer.invoke('llm-summarize', text, model, apiKeys),
     // System operations
     openExternal: (url) => electron_1.ipcRenderer.invoke('open-external', url),
     showSaveDialog: (options) => electron_1.ipcRenderer.invoke('show-save-dialog', options),
+    showOpenDialog: (options) => electron_1.ipcRenderer.invoke('show-open-dialog', options),
     // Database operations
     dbSaveTask: (task) => electron_1.ipcRenderer.invoke('db-save-task', task),
     dbUpdateTask: (id, updates) => electron_1.ipcRenderer.invoke('db-update-task', id, updates),

@@ -200,7 +200,10 @@ const URLInput: React.FC<URLInputProps> = () => {
       setProgress({ stage: 'download', progress: 0, message: 'Starting download...' });
       updateTask(taskId, { status: 'downloading', progress: 0 });
 
-      const downloadResult = await window.electronAPI.downloadVideo(url);
+      // Log cookies file usage for debugging
+      console.log('Using cookies file:', settings.cookiesFile || 'No cookies file configured');
+
+      const downloadResult = await window.electronAPI.downloadVideo(url, settings.cookiesFile || undefined);
       if (!downloadResult.success || !downloadResult.videoPath) {
         throw new Error(downloadResult.error || 'Download failed');
       }

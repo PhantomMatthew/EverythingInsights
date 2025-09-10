@@ -1,10 +1,11 @@
 export interface ElectronAPI {
-  downloadVideo: (url: string) => Promise<{ success: boolean; videoPath?: string; error?: string; title?: string }>;
+  downloadVideo: (url: string, cookiesFile?: string) => Promise<{ success: boolean; videoPath?: string; error?: string; title?: string }>;
   extractAudio: (videoPath: string) => Promise<{ success: boolean; audioPath?: string; error?: string }>;
   speechToText: (audioPath: string, model?: string) => Promise<{ success: boolean; text?: string; error?: string }>;
   llmSummarize: (text: string, model: string, apiKeys?: any) => Promise<{ success: boolean; summary?: string; error?: string }>;
   openExternal: (url: string) => Promise<void>;
   showSaveDialog: (options: any) => Promise<any>;
+  showOpenDialog: (options: any) => Promise<any>;
   
   // Database operations
   dbSaveTask: (task: any) => Promise<any>;

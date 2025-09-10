@@ -89,10 +89,10 @@ class MainProcess {
 
   private setupIPC(): void {
     // Download video and extract audio
-    ipcMain.handle('download-video', async (event, url: string) => {
+    ipcMain.handle('download-video', async (event, url: string, cookiesFile?: string) => {
       try {
-        log.info('Starting video download:', url);
-        return await this.downloadVideo(url);
+        log.info('Starting video download:', { url, cookiesFile });
+        return await this.downloadVideo(url, cookiesFile);
       } catch (error) {
         log.error('Video download failed:', error);
         throw error;
@@ -140,6 +140,12 @@ class MainProcess {
     // Show save dialog
     ipcMain.handle('show-save-dialog', async (event, options) => {
       const result = await dialog.showSaveDialog(this.mainWindow!, options);
+      return result;
+    });
+
+    // Show open dialog
+    ipcMain.handle('show-open-dialog', async (event, options) => {
+      const result = await dialog.showOpenDialog(this.mainWindow!, options);
       return result;
     });
 
@@ -227,17 +233,30 @@ class MainProcess {
     });
   }
 
-  private async downloadVideo(url: string): Promise<{ success: boolean; videoPath?: string; error?: string; title?: string }> {
+  private async downloadVideo(url: string, cookiesFile?: string): Promise<{ success: boolean; videoPath?: string; error?: string; title?: string }> {
     return new Promise((resolve) => {
       const timestamp = Date.now();
       const outputTemplate = path.join(this.tempDir, `video_${timestamp}_%(title)s.%(ext)s`);
       
+      // Build yt-dlp arguments for getting video info
+      const infoArgs = ['--dump-single-json', '--no-playlist'];
+      if (cookiesFile && cookiesFile.trim()) {
+        if (fs.existsSync(cookiesFile)) {
+          infoArgs.push('--cookies', cookiesFile);
+          log.info('Using cookies file for video info:', cookiesFile);
+        } else {
+          log.warn('Cookies file does not exist:', cookiesFile);
+        }
+      } else {
+        log.info('No cookies file provided for video info');
+      }
+      infoArgs.push(url);
+      
+      // Log the complete info command for debugging
+      log.info('yt-dlp info command:', ['yt-dlp'].concat(infoArgs).join(' '));
+      
       // Get video info first
-      const infoProcess = spawn('yt-dlp', [
-        '--dump-single-json',
-        '--no-playlist',
-        url
-      ]);
+      const infoProcess = spawn('yt-dlp', infoArgs);
 
       let videoInfo: any = null;
       let infoOutput = '';
@@ -261,14 +280,30 @@ class MainProcess {
           }
         }
 
-        // Start actual download
-        const ytDlp = spawn('yt-dlp', [
-          '-f', 'best[height<=720]/best',
+        // Start actual download with more flexible format selection
+        const downloadArgs = [
+          '-f', 'best[height<=1080]/best[height<=720]/best',  // Try multiple format fallbacks
           '--newline',
           '--no-playlist',
-          '-o', outputTemplate,
-          url
-        ]);
+          '--no-check-certificate',  // Help with some sites
+          '-o', outputTemplate
+        ];
+        if (cookiesFile && cookiesFile.trim()) {
+          if (fs.existsSync(cookiesFile)) {
+            downloadArgs.push('--cookies', cookiesFile);
+            log.info('Using cookies file for download:', cookiesFile);
+          } else {
+            log.warn('Cookies file does not exist for download:', cookiesFile);
+          }
+        } else {
+          log.info('No cookies file provided for download');
+        }
+        downloadArgs.push(url);
+        
+        // Log the complete command for debugging
+        log.info('yt-dlp download command:', ['yt-dlp'].concat(downloadArgs).join(' '));
+        
+        const ytDlp = spawn('yt-dlp', downloadArgs);
 
         let videoPath = '';
         let downloadComplete = false;
@@ -342,13 +377,121 @@ class MainProcess {
                 error: 'Downloaded file not found' 
               });
             }
+          } else if (code !== 0) {
+            // Handle specific error cases and retry with different formats
+            log.error('yt-dlp failed with code:', code);
+            
+            // Try with fallback format if format error occurred
+            this.retryDownloadWithFallback(url, outputTemplate, cookiesFile, videoInfo).then(resolve);
+          }
+        });
+      });
+    });
+  }
+
+  private async retryDownloadWithFallback(
+    url: string, 
+    outputTemplate: string, 
+    cookiesFile?: string, 
+    videoInfo?: any
+  ): Promise<{ success: boolean; videoPath?: string; error?: string; title?: string }> {
+    return new Promise((resolve) => {
+      log.info('Retrying download with fallback format selection');
+      
+      // Try with more permissive format selection
+      const fallbackArgs = [
+        '--format-sort', 'height:720',  // Prefer 720p but allow other heights
+        '--newline',
+        '--no-playlist',
+        '--no-check-certificate',
+        '--ignore-errors',  // Continue on non-fatal errors
+        '-o', outputTemplate
+      ];
+      
+      if (cookiesFile && cookiesFile.trim() && fs.existsSync(cookiesFile)) {
+        fallbackArgs.push('--cookies', cookiesFile);
+        log.info('Using cookies file for fallback download:', cookiesFile);
+      }
+      
+      fallbackArgs.push(url);
+      
+      log.info('yt-dlp fallback command:', ['yt-dlp'].concat(fallbackArgs).join(' '));
+      
+      const ytDlpFallback = spawn('yt-dlp', fallbackArgs);
+      let videoPath = '';
+      let downloadComplete = false;
+      const timestamp = Date.now();
+      
+      ytDlpFallback.stdout.on('data', (data) => {
+        const output = data.toString();
+        log.info('yt-dlp fallback output:', output);
+        
+        // Parse progress information
+        const progressMatch = output.match(/\[download\]\s+(\d+\.?\d*)%/);
+        if (progressMatch) {
+          const progress = parseFloat(progressMatch[1]);
+          this.mainWindow?.webContents.send('download-progress', {
+            stage: 'downloading',
+            progress: progress,
+            title: videoInfo?.title,
+            message: 'Retrying with fallback format...'
+          });
+        }
+
+        // Extract final video path
+        const pathMatch = output.match(/\[download\] (.+) has already been downloaded/);
+        if (pathMatch) {
+          videoPath = pathMatch[1];
+          downloadComplete = true;
+        }
+
+        // Extract merged file path
+        const mergeMatch = output.match(/\[Merger\] Merging formats into "(.+)"/);
+        if (mergeMatch) {
+          videoPath = mergeMatch[1];
+        }
+
+        // Check for completion
+        if (output.includes('100%') || output.includes('has already been downloaded')) {
+          downloadComplete = true;
+        }
+      });
+      
+      ytDlpFallback.stderr.on('data', (data) => {
+        const error = data.toString();
+        log.error('yt-dlp fallback stderr:', error);
+      });
+      
+      ytDlpFallback.on('close', (code) => {
+        if (code === 0 && downloadComplete) {
+          // If no specific path was captured, try to find the downloaded file
+          if (!videoPath) {
+            const files = fs.readdirSync(this.tempDir);
+            const videoFile = files.find(f => f.includes('video_') || (videoInfo?.title && f.includes(videoInfo.title.slice(0, 10))));
+            if (videoFile) {
+              videoPath = path.join(this.tempDir, videoFile);
+            }
+          }
+
+          if (videoPath && fs.existsSync(videoPath)) {
+            log.info('Fallback download succeeded:', videoPath);
+            resolve({ 
+              success: true, 
+              videoPath, 
+              title: videoInfo?.title || 'Unknown Video'
+            });
           } else {
             resolve({ 
               success: false, 
-              error: `yt-dlp exited with code ${code}` 
+              error: 'Fallback download failed: file not found' 
             });
           }
-        });
+        } else {
+          resolve({ 
+            success: false, 
+            error: `Both primary and fallback downloads failed. Last exit code: ${code}. Try using cookies or check if the video is available.` 
+          });
+        }
       });
     });
   }
@@ -561,29 +704,107 @@ class MainProcess {
     return new Promise((resolve) => {
       const prompt = `Please provide a concise summary (maximum 200 words) of the following video transcript and list 3 key points:\n\n${text}`;
       
+      log.info('Starting Ollama request:', { model, promptLength: prompt.length });
+      
+      // Set a timeout for the Ollama request (5 minutes)
+      const timeoutId = setTimeout(() => {
+        log.error('Ollama request timed out after 5 minutes');
+        ollama.kill('SIGTERM');
+        resolve({ 
+          success: false, 
+          error: `Ollama request timed out after 5 minutes. Please check if Ollama is running and the model '${model}' is available.` 
+        });
+      }, 5 * 60 * 1000);
+      
       const ollama = spawn('ollama', ['run', model], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
       let output = '';
       let errorOutput = '';
+      let hasResolved = false;
+
+      // Send progress updates to UI
+      this.mainWindow?.webContents.send('llm-progress', {
+        stage: 'connecting',
+        message: `Connecting to Ollama model: ${model}`
+      });
 
       ollama.stdin.write(prompt);
       ollama.stdin.end();
 
       ollama.stdout.on('data', (data) => {
-        output += data.toString();
+        const chunk = data.toString();
+        output += chunk;
+        log.info('Ollama output chunk received:', chunk.substring(0, 100) + '...');
+        
+        // Send progress update
+        this.mainWindow?.webContents.send('llm-progress', {
+          stage: 'generating',
+          message: 'Generating summary...'
+        });
       });
 
       ollama.stderr.on('data', (data) => {
-        errorOutput += data.toString();
+        const error = data.toString();
+        errorOutput += error;
+        log.error('Ollama stderr:', error);
+        
+        // Check for specific error patterns
+        if (error.includes('model') && error.includes('not found')) {
+          clearTimeout(timeoutId);
+          if (!hasResolved) {
+            hasResolved = true;
+            resolve({ 
+              success: false, 
+              error: `Model '${model}' not found. Please install it with: ollama pull ${model}` 
+            });
+          }
+        } else if (error.includes('connection refused') || error.includes('connect: connection refused')) {
+          clearTimeout(timeoutId);
+          if (!hasResolved) {
+            hasResolved = true;
+            resolve({ 
+              success: false, 
+              error: 'Cannot connect to Ollama. Please make sure Ollama is running.' 
+            });
+          }
+        }
+      });
+
+      ollama.on('error', (error) => {
+        log.error('Ollama process error:', error);
+        clearTimeout(timeoutId);
+        if (!hasResolved) {
+          hasResolved = true;
+          resolve({ 
+            success: false, 
+            error: `Ollama process error: ${error.message}. Make sure Ollama is installed and running.` 
+          });
+        }
       });
 
       ollama.on('close', (code) => {
-        if (code === 0 && output.trim()) {
-          resolve({ success: true, summary: output.trim() });
-        } else {
-          resolve({ success: false, error: errorOutput || `ollama exited with code ${code}` });
+        clearTimeout(timeoutId);
+        if (!hasResolved) {
+          hasResolved = true;
+          log.info('Ollama process closed:', { code, outputLength: output.length, errorLength: errorOutput.length });
+          
+          if (code === 0 && output.trim()) {
+            log.info('Ollama summarization completed successfully');
+            resolve({ success: true, summary: output.trim() });
+          } else {
+            let errorMessage = errorOutput || `ollama exited with code ${code}`;
+            
+            // Provide helpful error messages
+            if (code === 1 && errorOutput.includes('model')) {
+              errorMessage = `Model '${model}' is not available. Please install it with: ollama pull ${model}`;
+            } else if (code === 1 && !errorOutput) {
+              errorMessage = `Ollama failed to generate summary. Please check if the model '${model}' is working correctly.`;
+            }
+            
+            resolve({ success: false, error: errorMessage });
+          }
         }
       });
     });

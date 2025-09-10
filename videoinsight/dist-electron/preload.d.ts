@@ -1,10 +1,11 @@
 declare const electronAPI: {
-    downloadVideo: (url: string) => Promise<any>;
+    downloadVideo: (url: string, cookiesFile?: string) => Promise<any>;
     extractAudio: (videoPath: string) => Promise<any>;
     speechToText: (audioPath: string, model?: string) => Promise<any>;
     llmSummarize: (text: string, model: string, apiKeys?: any) => Promise<any>;
     openExternal: (url: string) => Promise<any>;
     showSaveDialog: (options: any) => Promise<any>;
+    showOpenDialog: (options: any) => Promise<any>;
     dbSaveTask: (task: any) => Promise<any>;
     dbUpdateTask: (id: string, updates: any) => Promise<any>;
     dbGetTask: (id: string) => Promise<any>;

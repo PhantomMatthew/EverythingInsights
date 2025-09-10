@@ -25,6 +25,7 @@ export interface Settings {
   theme: 'light' | 'dark' | 'system';
   outputFormat: 'txt' | 'md';
   tempDirectory: string;
+  cookiesFile: string;
 }
 
 interface AppState {
@@ -58,12 +59,13 @@ interface AppState {
 }
 
 const defaultSettings: Settings = {
-  llmModel: 'ollama:llama3',
+  llmModel: 'ollama:qwen3:30b',
   apiKeys: {},
   whisperModel: 'base',
   theme: 'system',
   outputFormat: 'md',
   tempDirectory: '',
+  cookiesFile: '',
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
