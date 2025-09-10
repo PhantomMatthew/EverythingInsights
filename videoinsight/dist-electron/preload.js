@@ -5,11 +5,21 @@ const electronAPI = {
     // Video processing
     downloadVideo: (url) => electron_1.ipcRenderer.invoke('download-video', url),
     extractAudio: (videoPath) => electron_1.ipcRenderer.invoke('extract-audio', videoPath),
-    speechToText: (audioPath) => electron_1.ipcRenderer.invoke('speech-to-text', audioPath),
-    llmSummarize: (text, model) => electron_1.ipcRenderer.invoke('llm-summarize', text, model),
+    speechToText: (audioPath, model) => electron_1.ipcRenderer.invoke('speech-to-text', audioPath, model),
+    llmSummarize: (text, model, apiKeys) => electron_1.ipcRenderer.invoke('llm-summarize', text, model, apiKeys),
     // System operations
     openExternal: (url) => electron_1.ipcRenderer.invoke('open-external', url),
     showSaveDialog: (options) => electron_1.ipcRenderer.invoke('show-save-dialog', options),
+    // Database operations
+    dbSaveTask: (task) => electron_1.ipcRenderer.invoke('db-save-task', task),
+    dbUpdateTask: (id, updates) => electron_1.ipcRenderer.invoke('db-update-task', id, updates),
+    dbGetTask: (id) => electron_1.ipcRenderer.invoke('db-get-task', id),
+    dbGetAllTasks: (limit, offset) => electron_1.ipcRenderer.invoke('db-get-all-tasks', limit, offset),
+    dbGetTasksByStatus: (status) => electron_1.ipcRenderer.invoke('db-get-tasks-by-status', status),
+    dbSearchTasks: (query) => electron_1.ipcRenderer.invoke('db-search-tasks', query),
+    dbDeleteTask: (id) => electron_1.ipcRenderer.invoke('db-delete-task', id),
+    dbGetStats: () => electron_1.ipcRenderer.invoke('db-get-stats'),
+    dbCleanup: () => electron_1.ipcRenderer.invoke('db-cleanup'),
     // Event listeners for progress updates
     onDownloadProgress: (callback) => {
         electron_1.ipcRenderer.on('download-progress', (_event, progress) => callback(progress));

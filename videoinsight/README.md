@@ -78,7 +78,12 @@ Before running VideoInsight, you need to install the following dependencies:
    npm run build:electron
    ```
 
-4. **Start development server**
+4. **Rebuild native modules for Electron**
+   ```bash
+   npm run rebuild
+   ```
+
+5. **Start development server**
    ```bash
    npm run electron:dev
    ```
@@ -221,6 +226,11 @@ The app uses Electron's IPC (Inter-Process Communication) for secure communicati
 4. **Ollama models not loading**
    - Install Ollama: Follow instructions at https://ollama.ai
    - Pull models: `ollama pull llama3`
+
+5. **better-sqlite3 module compilation errors**
+   - This happens when native modules aren't compiled for Electron
+   - Run: `npm run rebuild` to rebuild native modules
+   - The `postinstall` script should handle this automatically
 
 ### Logs and Debugging
 

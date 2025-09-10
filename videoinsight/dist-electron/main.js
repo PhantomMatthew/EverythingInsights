@@ -42,11 +42,13 @@ const child_process_1 = require("child_process");
 const fs = __importStar(require("fs"));
 const os = __importStar(require("os"));
 const electron_log_1 = __importDefault(require("electron-log"));
+const database_1 = __importDefault(require("./database"));
 const isDev = process.env.NODE_ENV === 'development';
 class MainProcess {
     constructor() {
         this.mainWindow = null;
         this.tempDir = path.join(os.tmpdir(), 'videoinsight');
+        this.database = new database_1.default();
         this.ensureTempDir();
         this.setupIPC();
     }
@@ -78,6 +80,10 @@ class MainProcess {
         }
         this.mainWindow.once('ready-to-show', () => {
             this.mainWindow?.show();
+            // Option 1: True fullscreen (hides title bar and dock/taskbar)
+            // this.mainWindow?.setFullScreen(true);
+            // Option 2: Maximize window (keeps title bar and dock/taskbar)
+            this.mainWindow?.maximize();
         });
         this.mainWindow.on('closed', () => {
             this.mainWindow = null;
@@ -107,10 +113,10 @@ class MainProcess {
             }
         });
         // Speech to text using Whisper
-        electron_1.ipcMain.handle('speech-to-text', async (event, audioPath) => {
+        electron_1.ipcMain.handle('speech-to-text', async (event, audioPath, model) => {
             try {
                 electron_log_1.default.info('Starting speech to text:', audioPath);
-                return await this.speechToText(audioPath);
+                return await this.speechToText(audioPath, model || 'base');
             }
             catch (error) {
                 electron_log_1.default.error('Speech to text failed:', error);
@@ -118,10 +124,10 @@ class MainProcess {
             }
         });
         // LLM summarization
-        electron_1.ipcMain.handle('llm-summarize', async (event, text, model) => {
+        electron_1.ipcMain.handle('llm-summarize', async (event, text, model, apiKeys) => {
             try {
                 electron_log_1.default.info('Starting LLM summarization with model:', model);
-                return await this.llmSummarize(text, model);
+                return await this.llmSummarize(text, model, apiKeys);
             }
             catch (error) {
                 electron_log_1.default.error('LLM summarization failed:', error);
@@ -137,83 +143,363 @@ class MainProcess {
             const result = await electron_1.dialog.showSaveDialog(this.mainWindow, options);
             return result;
         });
+        // Database operations
+        electron_1.ipcMain.handle('db-save-task', async (event, task) => {
+            try {
+                return this.database.saveTask(task);
+            }
+            catch (error) {
+                electron_log_1.default.error('Failed to save task to database:', error);
+                throw error;
+            }
+        });
+        electron_1.ipcMain.handle('db-update-task', async (event, id, updates) => {
+            try {
+                return this.database.updateTask(id, updates);
+            }
+            catch (error) {
+                electron_log_1.default.error('Failed to update task in database:', error);
+                throw error;
+            }
+        });
+        electron_1.ipcMain.handle('db-get-task', async (event, id) => {
+            try {
+                return this.database.getTask(id);
+            }
+            catch (error) {
+                electron_log_1.default.error('Failed to get task from database:', error);
+                throw error;
+            }
+        });
+        electron_1.ipcMain.handle('db-get-all-tasks', async (event, limit, offset) => {
+            try {
+                return this.database.getAllTasks(limit, offset);
+            }
+            catch (error) {
+                electron_log_1.default.error('Failed to get tasks from database:', error);
+                throw error;
+            }
+        });
+        electron_1.ipcMain.handle('db-get-tasks-by-status', async (event, status) => {
+            try {
+                return this.database.getTasksByStatus(status);
+            }
+            catch (error) {
+                electron_log_1.default.error('Failed to get tasks by status from database:', error);
+                throw error;
+            }
+        });
+        electron_1.ipcMain.handle('db-search-tasks', async (event, query) => {
+            try {
+                return this.database.searchTasks(query);
+            }
+            catch (error) {
+                electron_log_1.default.error('Failed to search tasks in database:', error);
+                throw error;
+            }
+        });
+        electron_1.ipcMain.handle('db-delete-task', async (event, id) => {
+            try {
+                return this.database.deleteTask(id);
+            }
+            catch (error) {
+                electron_log_1.default.error('Failed to delete task from database:', error);
+                throw error;
+            }
+        });
+        electron_1.ipcMain.handle('db-get-stats', async (event) => {
+            try {
+                return this.database.getTaskStats();
+            }
+            catch (error) {
+                electron_log_1.default.error('Failed to get task stats from database:', error);
+                throw error;
+            }
+        });
+        electron_1.ipcMain.handle('db-cleanup', async (event) => {
+            try {
+                this.database.cleanup();
+                return { success: true };
+            }
+            catch (error) {
+                electron_log_1.default.error('Failed to cleanup database:', error);
+                throw error;
+            }
+        });
     }
     async downloadVideo(url) {
         return new Promise((resolve) => {
-            const outputPath = path.join(this.tempDir, `video_${Date.now()}.%(ext)s`);
-            const ytDlp = (0, child_process_1.spawn)('yt-dlp', [
-                '-f', 'best[height<=720]',
-                '-o', outputPath,
+            const timestamp = Date.now();
+            const outputTemplate = path.join(this.tempDir, `video_${timestamp}_%(title)s.%(ext)s`);
+            // Get video info first
+            const infoProcess = (0, child_process_1.spawn)('yt-dlp', [
+                '--dump-single-json',
+                '--no-playlist',
                 url
             ]);
-            let videoPath = '';
-            ytDlp.stdout.on('data', (data) => {
-                const output = data.toString();
-                electron_log_1.default.info('yt-dlp stdout:', output);
-                // Extract the final video path from yt-dlp output
-                const pathMatch = output.match(/\[download\] (.+) has already been downloaded/);
-                if (pathMatch) {
-                    videoPath = pathMatch[1];
-                }
+            let videoInfo = null;
+            let infoOutput = '';
+            infoProcess.stdout.on('data', (data) => {
+                infoOutput += data.toString();
             });
-            ytDlp.stderr.on('data', (data) => {
-                electron_log_1.default.error('yt-dlp stderr:', data.toString());
-            });
-            ytDlp.on('close', (code) => {
-                if (code === 0 && videoPath) {
-                    resolve({ success: true, videoPath });
+            infoProcess.on('close', (infoCode) => {
+                if (infoCode === 0) {
+                    try {
+                        videoInfo = JSON.parse(infoOutput);
+                        electron_log_1.default.info('Video info:', { title: videoInfo.title, duration: videoInfo.duration });
+                        this.mainWindow?.webContents.send('download-progress', {
+                            stage: 'info',
+                            title: videoInfo.title,
+                            duration: videoInfo.duration
+                        });
+                    }
+                    catch (e) {
+                        electron_log_1.default.error('Failed to parse video info:', e);
+                    }
                 }
-                else {
-                    resolve({ success: false, error: `yt-dlp exited with code ${code}` });
-                }
+                // Start actual download
+                const ytDlp = (0, child_process_1.spawn)('yt-dlp', [
+                    '-f', 'best[height<=720]/best',
+                    '--newline',
+                    '--no-playlist',
+                    '-o', outputTemplate,
+                    url
+                ]);
+                let videoPath = '';
+                let downloadComplete = false;
+                ytDlp.stdout.on('data', (data) => {
+                    const output = data.toString();
+                    electron_log_1.default.info('yt-dlp output:', output);
+                    // Parse progress information
+                    const progressMatch = output.match(/\[download\]\s+(\d+\.?\d*)%/);
+                    if (progressMatch) {
+                        const progress = parseFloat(progressMatch[1]);
+                        this.mainWindow?.webContents.send('download-progress', {
+                            stage: 'downloading',
+                            progress: progress,
+                            title: videoInfo?.title
+                        });
+                    }
+                    // Extract final video path
+                    const pathMatch = output.match(/\[download\] (.+) has already been downloaded/);
+                    if (pathMatch) {
+                        videoPath = pathMatch[1];
+                        downloadComplete = true;
+                    }
+                    // Extract merged file path
+                    const mergeMatch = output.match(/\[Merger\] Merging formats into "(.+)"/);
+                    if (mergeMatch) {
+                        videoPath = mergeMatch[1];
+                    }
+                    // Check for completion
+                    if (output.includes('100%') || output.includes('has already been downloaded')) {
+                        downloadComplete = true;
+                    }
+                });
+                ytDlp.stderr.on('data', (data) => {
+                    const error = data.toString();
+                    electron_log_1.default.error('yt-dlp stderr:', error);
+                    // Send error updates to UI
+                    this.mainWindow?.webContents.send('download-progress', {
+                        stage: 'error',
+                        error: error,
+                        title: videoInfo?.title
+                    });
+                });
+                ytDlp.on('close', (code) => {
+                    if (code === 0 && downloadComplete) {
+                        // If no specific path was captured, try to find the downloaded file
+                        if (!videoPath) {
+                            const files = fs.readdirSync(this.tempDir);
+                            const videoFile = files.find(f => f.startsWith(`video_${timestamp}`));
+                            if (videoFile) {
+                                videoPath = path.join(this.tempDir, videoFile);
+                            }
+                        }
+                        if (videoPath && fs.existsSync(videoPath)) {
+                            resolve({
+                                success: true,
+                                videoPath,
+                                title: videoInfo?.title || 'Unknown Video'
+                            });
+                        }
+                        else {
+                            resolve({
+                                success: false,
+                                error: 'Downloaded file not found'
+                            });
+                        }
+                    }
+                    else {
+                        resolve({
+                            success: false,
+                            error: `yt-dlp exited with code ${code}`
+                        });
+                    }
+                });
             });
         });
     }
     async extractAudio(videoPath) {
         return new Promise((resolve) => {
             const audioPath = path.join(this.tempDir, `audio_${Date.now()}.wav`);
+            electron_log_1.default.info('Starting audio extraction:', { videoPath, audioPath });
             const ffmpeg = (0, child_process_1.spawn)('ffmpeg', [
                 '-i', videoPath,
-                '-vn',
-                '-acodec', 'pcm_s16le',
-                '-ar', '16000',
-                '-ac', '1',
+                '-vn', // No video
+                '-acodec', 'pcm_s16le', // PCM 16-bit little-endian
+                '-ar', '16000', // Sample rate 16kHz (optimal for Whisper)
+                '-ac', '1', // Mono channel
+                '-y', // Overwrite output file
                 audioPath
             ]);
+            let duration = 0;
+            let currentTime = 0;
             ffmpeg.stderr.on('data', (data) => {
-                electron_log_1.default.info('ffmpeg stderr:', data.toString());
+                const output = data.toString();
+                electron_log_1.default.info('ffmpeg output:', output);
+                // Extract duration
+                const durationMatch = output.match(/Duration: (\d{2}):(\d{2}):(\d{2})/);
+                if (durationMatch) {
+                    const hours = parseInt(durationMatch[1]);
+                    const minutes = parseInt(durationMatch[2]);
+                    const seconds = parseInt(durationMatch[3]);
+                    duration = hours * 3600 + minutes * 60 + seconds;
+                    this.mainWindow?.webContents.send('extraction-progress', {
+                        stage: 'extracting',
+                        duration: duration
+                    });
+                }
+                // Extract current time
+                const timeMatch = output.match(/time=(\d{2}):(\d{2}):(\d{2})/);
+                if (timeMatch && duration > 0) {
+                    const hours = parseInt(timeMatch[1]);
+                    const minutes = parseInt(timeMatch[2]);
+                    const seconds = parseInt(timeMatch[3]);
+                    currentTime = hours * 3600 + minutes * 60 + seconds;
+                    const progress = (currentTime / duration) * 100;
+                    this.mainWindow?.webContents.send('extraction-progress', {
+                        stage: 'extracting',
+                        progress: Math.min(progress, 100),
+                        currentTime: currentTime,
+                        duration: duration
+                    });
+                }
             });
             ffmpeg.on('close', (code) => {
                 if (code === 0) {
-                    resolve({ success: true, audioPath });
+                    // Verify the audio file was created
+                    if (fs.existsSync(audioPath)) {
+                        const stats = fs.statSync(audioPath);
+                        electron_log_1.default.info('Audio extraction completed:', {
+                            audioPath,
+                            size: stats.size,
+                            duration: duration
+                        });
+                        this.mainWindow?.webContents.send('extraction-progress', {
+                            stage: 'completed',
+                            progress: 100
+                        });
+                        resolve({ success: true, audioPath });
+                    }
+                    else {
+                        resolve({ success: false, error: 'Audio file was not created' });
+                    }
                 }
                 else {
                     resolve({ success: false, error: `ffmpeg exited with code ${code}` });
                 }
             });
+            ffmpeg.on('error', (error) => {
+                electron_log_1.default.error('ffmpeg process error:', error);
+                resolve({ success: false, error: `ffmpeg process error: ${error.message}` });
+            });
         });
     }
-    async speechToText(audioPath) {
+    async speechToText(audioPath, model = 'base') {
         return new Promise((resolve) => {
-            const whisper = (0, child_process_1.spawn)('whisper', [audioPath, '--model', 'base', '--output_format', 'txt']);
+            const outputDir = path.dirname(audioPath);
+            const outputPrefix = path.basename(audioPath, path.extname(audioPath));
+            electron_log_1.default.info('Starting speech recognition:', { audioPath, model });
+            const whisper = (0, child_process_1.spawn)('whisper', [
+                audioPath,
+                '--model', model,
+                '--output_format', 'txt',
+                '--output_dir', outputDir,
+                '--verbose', 'False'
+            ]);
             let outputText = '';
+            let errorOutput = '';
             whisper.stdout.on('data', (data) => {
-                outputText += data.toString();
+                const output = data.toString();
+                electron_log_1.default.info('whisper stdout:', output);
+                // Send progress updates to UI
+                this.mainWindow?.webContents.send('transcription-progress', {
+                    stage: 'transcribing',
+                    message: 'Processing audio with Whisper...'
+                });
             });
             whisper.stderr.on('data', (data) => {
-                electron_log_1.default.info('whisper stderr:', data.toString());
+                const output = data.toString();
+                errorOutput += output;
+                electron_log_1.default.info('whisper stderr:', output);
+                // Parse progress if available
+                if (output.includes('%')) {
+                    const progressMatch = output.match(/(\d+)%/);
+                    if (progressMatch) {
+                        const progress = parseInt(progressMatch[1]);
+                        this.mainWindow?.webContents.send('transcription-progress', {
+                            stage: 'transcribing',
+                            progress: progress
+                        });
+                    }
+                }
             });
             whisper.on('close', (code) => {
                 if (code === 0) {
-                    resolve({ success: true, text: outputText.trim() });
+                    // Read the output text file
+                    const txtFilePath = path.join(outputDir, `${outputPrefix}.txt`);
+                    try {
+                        if (fs.existsSync(txtFilePath)) {
+                            const transcriptText = fs.readFileSync(txtFilePath, 'utf-8').trim();
+                            electron_log_1.default.info('Speech recognition completed:', {
+                                transcriptLength: transcriptText.length,
+                                txtFile: txtFilePath
+                            });
+                            this.mainWindow?.webContents.send('transcription-progress', {
+                                stage: 'completed',
+                                progress: 100
+                            });
+                            // Clean up the txt file
+                            try {
+                                fs.unlinkSync(txtFilePath);
+                            }
+                            catch (cleanupError) {
+                                electron_log_1.default.warn('Failed to cleanup transcript file:', cleanupError);
+                            }
+                            resolve({ success: true, text: transcriptText });
+                        }
+                        else {
+                            resolve({ success: false, error: 'Transcript file not found' });
+                        }
+                    }
+                    catch (readError) {
+                        electron_log_1.default.error('Failed to read transcript file:', readError);
+                        resolve({ success: false, error: `Failed to read transcript: ${readError}` });
+                    }
                 }
                 else {
-                    resolve({ success: false, error: `whisper exited with code ${code}` });
+                    electron_log_1.default.error('Whisper failed:', { code, error: errorOutput });
+                    resolve({ success: false, error: `whisper exited with code ${code}: ${errorOutput}` });
                 }
+            });
+            whisper.on('error', (error) => {
+                electron_log_1.default.error('whisper process error:', error);
+                resolve({ success: false, error: `whisper process error: ${error.message}` });
             });
         });
     }
-    async llmSummarize(text, model) {
+    async llmSummarize(text, model, apiKeys) {
         try {
             if (model.startsWith('ollama:')) {
                 // Use local Ollama
@@ -222,7 +508,13 @@ class MainProcess {
             }
             else if (model.startsWith('openai:')) {
                 // Use OpenAI API
-                return await this.callOpenAI(text, model.replace('openai:', ''));
+                const modelName = model.replace('openai:', '');
+                return await this.callOpenAI(text, modelName, apiKeys?.openai);
+            }
+            else if (model.startsWith('claude:')) {
+                // Use Claude API
+                const modelName = model.replace('claude:', '');
+                return await this.callClaude(text, modelName, apiKeys?.claude);
             }
             else {
                 return { success: false, error: 'Unsupported model type' };
@@ -258,10 +550,110 @@ class MainProcess {
             });
         });
     }
-    async callOpenAI(text, model) {
-        // This would implement OpenAI API calls
-        // For now, return a placeholder
-        return { success: false, error: 'OpenAI integration not implemented yet' };
+    async callOpenAI(text, model, apiKey) {
+        if (!apiKey) {
+            return { success: false, error: 'OpenAI API key not provided' };
+        }
+        try {
+            const prompt = `Please provide a concise summary (maximum 200 words) of the following video transcript and list 3 key points:\n\n${text}`;
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    max_tokens: 500,
+                    temperature: 0.7,
+                }),
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                return {
+                    success: false,
+                    error: `OpenAI API error: ${response.status} - ${errorData.error?.message || response.statusText}`
+                };
+            }
+            const data = await response.json();
+            const summary = data.choices?.[0]?.message?.content?.trim();
+            if (summary) {
+                electron_log_1.default.info('OpenAI summarization completed:', {
+                    model,
+                    inputLength: text.length,
+                    outputLength: summary.length
+                });
+                return { success: true, summary };
+            }
+            else {
+                return { success: false, error: 'No summary generated by OpenAI' };
+            }
+        }
+        catch (error) {
+            electron_log_1.default.error('OpenAI API call failed:', error);
+            return { success: false, error: `OpenAI API call failed: ${error.message}` };
+        }
+    }
+    async callClaude(text, model, apiKey) {
+        if (!apiKey) {
+            return { success: false, error: 'Claude API key not provided' };
+        }
+        try {
+            const prompt = `Please provide a concise summary (maximum 200 words) of the following video transcript and list 3 key points:\n\n${text}`;
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                },
+                body: JSON.stringify({
+                    model: model,
+                    max_tokens: 500,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                }),
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                return {
+                    success: false,
+                    error: `Claude API error: ${response.status} - ${errorData.error?.message || response.statusText}`
+                };
+            }
+            const data = await response.json();
+            const summary = data.content?.[0]?.text?.trim();
+            if (summary) {
+                electron_log_1.default.info('Claude summarization completed:', {
+                    model,
+                    inputLength: text.length,
+                    outputLength: summary.length
+                });
+                return { success: true, summary };
+            }
+            else {
+                return { success: false, error: 'No summary generated by Claude' };
+            }
+        }
+        catch (error) {
+            electron_log_1.default.error('Claude API call failed:', error);
+            return { success: false, error: `Claude API call failed: ${error.message}` };
+        }
+    }
+    cleanup() {
+        if (this.database) {
+            this.database.close();
+        }
     }
 }
 const mainProcess = new MainProcess();
@@ -276,6 +668,12 @@ electron_1.app.whenReady().then(() => {
 electron_1.app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         electron_1.app.quit();
+    }
+});
+electron_1.app.on('before-quit', () => {
+    // Cleanup database connection
+    if (mainProcess) {
+        mainProcess.cleanup();
     }
 });
 //# sourceMappingURL=main.js.map

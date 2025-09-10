@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   Card, 
   CardBody, 
@@ -6,16 +6,83 @@ import {
   Button, 
   Input, 
   Chip,
-  Divider
+  Divider,
+  Progress
 } from '@heroui/react';
 import { useAppStore } from '../store/appStore';
+import { useToast } from './ToastProvider';
 
 interface URLInputProps {}
 
 const URLInput: React.FC<URLInputProps> = () => {
   const [url, setUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const { addTask, startTaskProcessing } = useAppStore();
+  const [currentTask, setCurrentTask] = useState<any>(null);
+  const [progress, setProgress] = useState({
+    stage: '',
+    progress: 0,
+    message: ''
+  });
+  
+  const { addTask, updateTask, settings } = useAppStore();
+  const { addToast } = useToast();
+
+  useEffect(() => {
+    if (!window.electronAPI) return;
+
+    // Set up progress listeners
+    const cleanupDownload = window.electronAPI.onDownloadProgress((data) => {
+      setProgress({
+        stage: 'download',
+        progress: data.progress || 0,
+        message: data.title ? `Downloading: ${data.title}` : 'Downloading video...'
+      });
+      
+      if (currentTask) {
+        updateTask(currentTask.id, {
+          status: 'downloading',
+          progress: data.progress || 0,
+          title: data.title
+        });
+      }
+    });
+
+    const cleanupExtraction = window.electronAPI.onExtractionProgress((data) => {
+      setProgress({
+        stage: 'extraction',
+        progress: data.progress || 0,
+        message: 'Extracting audio from video...'
+      });
+      
+      if (currentTask) {
+        updateTask(currentTask.id, {
+          status: 'extracting',
+          progress: 30 + (data.progress || 0) * 0.3
+        });
+      }
+    });
+
+    const cleanupTranscription = window.electronAPI.onTranscriptionProgress((data) => {
+      setProgress({
+        stage: 'transcription',
+        progress: data.progress || 0,
+        message: 'Converting speech to text...'
+      });
+      
+      if (currentTask) {
+        updateTask(currentTask.id, {
+          status: 'transcribing',
+          progress: 60 + (data.progress || 0) * 0.2
+        });
+      }
+    });
+
+    return () => {
+      cleanupDownload();
+      cleanupExtraction();
+      cleanupTranscription();
+    };
+  }, [currentTask, updateTask]);
 
   const detectPlatform = (url: string): { platform: string; isValid: boolean; error?: string } => {
     const cleanUrl = url.trim();
@@ -59,100 +126,169 @@ const URLInput: React.FC<URLInputProps> = () => {
     const validation = detectPlatform(url);
     
     if (!validation.isValid) {
-      alert(validation.error || 'Invalid URL');
+      addToast({
+        type: 'error',
+        title: 'Invalid URL',
+        message: validation.error || 'Please enter a valid YouTube or Bilibili URL'
+      });
+      return;
+    }
+
+    if (!window.electronAPI) {
+      addToast({
+        type: 'error',
+        title: 'Electron API Error',
+        message: 'Please run the application in Electron environment'
+      });
       return;
     }
 
     setIsProcessing(true);
+    setProgress({ stage: 'init', progress: 0, message: 'Initializing...' });
+
     try {
-      // Add task to store
+      // Create task
       const taskId = addTask(url);
-      
-      // Start processing
-      startTaskProcessing(taskId);
-      
-      // Process video (this will be handled by the task processing service)
+      const task = { id: taskId, url, status: 'pending', progress: 0, createdAt: new Date() };
+      setCurrentTask(task);
+
+      // Save to database
+      if (window.electronAPI.dbSaveTask) {
+        await window.electronAPI.dbSaveTask(task);
+      }
+
+      // Start processing pipeline
       await processVideo(url, taskId);
       
-      // Clear input
       setUrl('');
+      setCurrentTask(null);
+      
+      addToast({
+        type: 'success',
+        title: 'Processing Complete',
+        message: 'Video has been successfully processed and summarized!'
+      });
+      
     } catch (error) {
       console.error('Error processing video:', error);
-      alert('Failed to process video. Please try again.');
+      addToast({
+        type: 'error',
+        title: 'Processing Failed',
+        message: (error as Error).message,
+        duration: 8000,
+        action: {
+          label: 'Retry',
+          onClick: () => handleSubmit()
+        }
+      });
+      
+      if (currentTask) {
+        updateTask(currentTask.id, { 
+          status: 'failed', 
+          error: (error as Error).message 
+        });
+      }
     } finally {
       setIsProcessing(false);
+      setProgress({ stage: '', progress: 0, message: '' });
     }
-  }, [url, addTask, startTaskProcessing]);
+  }, [url, addTask, addToast]);
 
   const processVideo = async (url: string, taskId: string) => {
     try {
-      // This would normally be handled by a service
-      // For now, we'll just simulate the process
-      const { updateTask } = useAppStore.getState();
-      
-      // Download video
-      updateTask(taskId, { status: 'downloading', progress: 10 });
-      
-      if (window.electronAPI) {
-        const downloadResult = await window.electronAPI.downloadVideo(url);
-        if (!downloadResult.success) {
-          throw new Error(downloadResult.error);
-        }
-        
-        updateTask(taskId, { 
-          status: 'extracting', 
-          progress: 40,
-          videoPath: downloadResult.videoPath 
-        });
-        
-        // Extract audio
-        const extractResult = await window.electronAPI.extractAudio(downloadResult.videoPath!);
-        if (!extractResult.success) {
-          throw new Error(extractResult.error);
-        }
-        
-        updateTask(taskId, { 
-          status: 'transcribing', 
-          progress: 60,
-          audioPath: extractResult.audioPath 
-        });
-        
-        // Speech to text
-        const transcriptResult = await window.electronAPI.speechToText(extractResult.audioPath!);
-        if (!transcriptResult.success) {
-          throw new Error(transcriptResult.error);
-        }
-        
-        updateTask(taskId, { 
-          status: 'summarizing', 
-          progress: 80,
-          transcript: transcriptResult.text 
-        });
-        
-        // Generate summary
-        const { settings } = useAppStore.getState();
-        const summaryResult = await window.electronAPI.llmSummarize(
-          transcriptResult.text!, 
-          settings.llmModel
-        );
-        
-        if (!summaryResult.success) {
-          throw new Error(summaryResult.error);
-        }
-        
-        updateTask(taskId, { 
-          status: 'completed', 
+      // Step 1: Download video
+      setProgress({ stage: 'download', progress: 0, message: 'Starting download...' });
+      updateTask(taskId, { status: 'downloading', progress: 0 });
+
+      const downloadResult = await window.electronAPI.downloadVideo(url);
+      if (!downloadResult.success || !downloadResult.videoPath) {
+        throw new Error(downloadResult.error || 'Download failed');
+      }
+
+      updateTask(taskId, { 
+        status: 'extracting',
+        progress: 30,
+        title: downloadResult.title,
+        videoPath: downloadResult.videoPath
+      });
+
+      // Step 2: Extract audio
+      setProgress({ stage: 'extraction', progress: 0, message: 'Extracting audio...' });
+      const extractResult = await window.electronAPI.extractAudio(downloadResult.videoPath);
+      if (!extractResult.success || !extractResult.audioPath) {
+        throw new Error(extractResult.error || 'Audio extraction failed');
+      }
+
+      updateTask(taskId, { 
+        status: 'transcribing',
+        progress: 60,
+        audioPath: extractResult.audioPath
+      });
+
+      // Step 3: Speech to text
+      setProgress({ stage: 'transcription', progress: 0, message: 'Converting speech to text...' });
+      const transcriptResult = await window.electronAPI.speechToText(
+        extractResult.audioPath, 
+        settings.whisperModel
+      );
+      if (!transcriptResult.success || !transcriptResult.text) {
+        throw new Error(transcriptResult.error || 'Speech to text failed');
+      }
+
+      updateTask(taskId, { 
+        status: 'summarizing',
+        progress: 80,
+        transcript: transcriptResult.text
+      });
+
+      // Step 4: Generate summary
+      setProgress({ stage: 'summarization', progress: 0, message: 'Generating AI summary...' });
+      const summaryResult = await window.electronAPI.llmSummarize(
+        transcriptResult.text, 
+        settings.llmModel,
+        settings.apiKeys
+      );
+
+      if (!summaryResult.success) {
+        throw new Error(summaryResult.error || 'Summarization failed');
+      }
+
+      // Complete
+      updateTask(taskId, { 
+        status: 'completed', 
+        progress: 100,
+        summary: summaryResult.summary,
+        completedAt: new Date()
+      });
+
+      setProgress({ stage: 'completed', progress: 100, message: 'Processing completed!' });
+
+      // Save final state to database
+      if (window.electronAPI.dbUpdateTask) {
+        await window.electronAPI.dbUpdateTask(taskId, {
+          status: 'completed',
           progress: 100,
+          title: downloadResult.title,
+          transcript: transcriptResult.text,
           summary: summaryResult.summary,
-          completedAt: new Date()
+          completed_at: new Date()
         });
       }
+
     } catch (error) {
-      const { updateTask } = useAppStore.getState();
       updateTask(taskId, { 
         status: 'failed', 
         error: (error as Error).message 
       });
+      
+      // Save error state to database
+      if (window.electronAPI.dbUpdateTask) {
+        await window.electronAPI.dbUpdateTask(taskId, {
+          status: 'failed',
+          error: (error as Error).message
+        });
+      }
+      
       throw error;
     }
   };
@@ -196,6 +332,7 @@ const URLInput: React.FC<URLInputProps> = () => {
           variant="bordered"
           errorMessage={url && !validation.isValid ? validation.error : ''}
           isInvalid={url ? !validation.isValid : false}
+          isDisabled={isProcessing}
         />
         
         {url && validation.isValid && (
@@ -204,6 +341,21 @@ const URLInput: React.FC<URLInputProps> = () => {
             <Chip color="success" variant="flat" size="sm">
               {validation.platform}
             </Chip>
+          </div>
+        )}
+
+        {isProcessing && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-default-600">{progress.message}</span>
+              <span className="text-default-500">{Math.round(progress.progress)}%</span>
+            </div>
+            <Progress 
+              value={progress.progress}
+              size="sm"
+              color="primary"
+              className="w-full"
+            />
           </div>
         )}
         
