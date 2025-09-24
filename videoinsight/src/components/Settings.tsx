@@ -60,11 +60,11 @@ const Settings: React.FC<SettingsProps> = () => {
   return (
     <div className="space-y-8">
       {/* LLM Settings */}
-      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+      <Card className="shadow-sm border border-default-200 bg-white">
         <CardHeader className="p-6">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-primary to-secondary rounded-xl">
-              <span className="text-white text-xl">🤖</span>
+            <div className="p-3 bg-primary/10 rounded-xl">
+              <span className="text-primary text-xl">🤖</span>
             </div>
             <div>
               <h3 className="text-xl font-bold text-default-800">AI Model Settings</h3>
@@ -132,11 +132,11 @@ const Settings: React.FC<SettingsProps> = () => {
       </Card>
 
       {/* API Keys */}
-      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+      <Card className="shadow-sm border border-default-200 bg-white">
         <CardHeader className="p-6">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-warning to-danger rounded-xl">
-              <span className="text-white text-xl">🔑</span>
+              <span className="text-primary text-xl">🔑</span>
             </div>
             <div>
               <h3 className="text-xl font-bold text-default-800">API Keys</h3>
@@ -185,11 +185,11 @@ const Settings: React.FC<SettingsProps> = () => {
       </Card>
 
       {/* General Settings */}
-      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+      <Card className="shadow-sm border border-default-200 bg-white">
         <CardHeader className="p-6">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-success to-primary rounded-xl">
-              <span className="text-white text-xl">⚙️</span>
+              <span className="text-primary text-xl">⚙️</span>
             </div>
             <div>
               <h3 className="text-xl font-bold text-default-800">General Settings</h3>
@@ -327,11 +327,11 @@ const Settings: React.FC<SettingsProps> = () => {
       </Card>
 
       {/* System Information */}
-      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+      <Card className="shadow-sm border border-default-200 bg-white">
         <CardHeader className="p-6">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-secondary to-warning rounded-xl">
-              <span className="text-white text-xl">💻</span>
+            <div className="p-3 bg-primary/10 rounded-xl">
+              <span className="text-primary text-xl">💻</span>
             </div>
             <div>
               <h3 className="text-xl font-bold text-default-800">System Information</h3>
@@ -342,7 +342,7 @@ const Settings: React.FC<SettingsProps> = () => {
         <Divider />
         <CardBody className="space-y-6 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-gradient-to-br from-primary-50 to-secondary-50 border-primary-200">
+            <Card className="bg-white border-default-200">
               <CardBody className="p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-2xl">🔧</span>
@@ -369,7 +369,7 @@ const Settings: React.FC<SettingsProps> = () => {
               </CardBody>
             </Card>
             
-            <Card className="bg-gradient-to-br from-success-50 to-primary-50 border-success-200">
+            <Card className="bg-white border-default-200">
               <CardBody className="p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-2xl">📦</span>
@@ -447,3 +447,4 @@ const Settings: React.FC<SettingsProps> = () => {
 };
 
 export default Settings;
+

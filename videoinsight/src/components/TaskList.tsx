@@ -114,7 +114,7 @@ ${task.transcript || 'No transcript available'}
 
   if (displayTasks.length === 0) {
     return (
-      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+      <Card className="shadow-sm border border-default-200 bg-white">
         <CardBody className="text-center py-16">
           <div className="space-y-4">
             <div className="text-6xl">📺</div>
@@ -134,7 +134,7 @@ ${task.transcript || 'No transcript available'}
 
   return (
     <>
-      <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+      <Card className="shadow-sm border border-default-200 bg-white">
         <CardHeader className="flex justify-between items-center p-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-lg">
@@ -272,7 +272,7 @@ ${task.transcript || 'No transcript available'}
         scrollBehavior="inside"
         backdrop="blur"
         classNames={{
-          base: "bg-gradient-to-br from-white to-default-50",
+          base: "bg-white",
           header: "border-b border-default-200",
           body: "py-6",
           footer: "border-t border-default-200"
@@ -281,8 +281,8 @@ ${task.transcript || 'No transcript available'}
         <ModalContent>
           <ModalHeader className="flex flex-col">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-success to-primary rounded-xl">
-                <span className="text-white text-2xl">🎬</span>
+              <div className="p-3 bg-primary/10 rounded-xl">
+                <span className="text-primary text-2xl">🎬</span>
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-default-800">Task Results</h3>
@@ -311,7 +311,7 @@ ${task.transcript || 'No transcript available'}
                   </div>
                   <h4 className="text-lg font-bold text-default-800">AI Summary</h4>
                 </div>
-                <Card className="bg-gradient-to-br from-primary-50 to-secondary-50 border-primary-200">
+                <Card className="bg-white border-default-200">
                   <CardBody>
                     <Textarea
                       value={selectedTask.summary}
@@ -337,7 +337,7 @@ ${task.transcript || 'No transcript available'}
                   </div>
                   <h4 className="text-lg font-bold text-default-800">Full Transcript</h4>
                 </div>
-                <Card className="bg-gradient-to-br from-warning-50 to-default-50 border-warning-200">
+                <Card className="bg-white border-default-200">
                   <CardBody>
                     <Textarea
                       value={selectedTask.transcript}
@@ -380,3 +380,4 @@ ${task.transcript || 'No transcript available'}
 };
 
 export default TaskList;
+

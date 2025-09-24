@@ -311,11 +311,10 @@ const URLInput: React.FC<URLInputProps> = () => {
   const validation = detectPlatform(url);
 
   return (
-    <Card className="shadow-lg border-none bg-gradient-to-br from-white to-default-50">
+    <Card className="shadow-sm border border-default-200 bg-white">
       <CardHeader className="pb-2">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-lg">
-            <span className="text-white text-xl">🎬</span>
+          <div className="p-2 bg-primary/10 rounded-lg"><span className="text-primary text-xl">🎬</span>
           </div>
           <div>
             <h3 className="text-xl font-bold text-default-800">Add Video</h3>
@@ -326,7 +325,7 @@ const URLInput: React.FC<URLInputProps> = () => {
       <Divider />
       <CardBody className="space-y-6 pt-6">
         <div 
-          className="relative p-8 border-2 border-dashed border-default-300 rounded-xl bg-gradient-to-br from-default-50 to-default-100 hover:border-primary-300 transition-colors duration-200"
+          className="relative p-8 border-2 border-dashed border-default-300 rounded-xl bg-default-50 hover:border-primary-300 transition-colors duration-200"
           onDrop={handleDrop}
           onDragOver={handleDragOver}
         >
@@ -378,7 +377,7 @@ const URLInput: React.FC<URLInputProps> = () => {
         )}
 
         {isProcessing && (
-          <div className="space-y-4 p-4 bg-primary-50 rounded-xl border border-primary-200">
+          <div className="space-y-4 p-4 bg-default-50 rounded-xl border border-default-200">
             <div className="flex items-center gap-3">
               <div className="animate-spin p-2 bg-primary-100 rounded-lg">
                 <span className="text-primary-600 text-lg">⚡</span>
@@ -430,3 +429,4 @@ const URLInput: React.FC<URLInputProps> = () => {
 };
 
 export default URLInput;
+
